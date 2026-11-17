@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arduino Fingerprint Door Access System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 3.a HEADER DAN NAVIGATION BAR -->
+<header class="topbar">
+  <div class="wrap bar">
+    <a class="brand" href="#hero">Arduino Fingerprint Door Access System</a>
+    <nav aria-label="Navigasi utama">
+      <a href="#dashboard">Dashboard</a>
+      <a href="#simulasi">Simulasi</a>
+      <a href="#log">Log Aktivitas</a>
+      <a href="#tentang">Tentang Sistem</a>
+    </nav>
+    <div class="sys" id="sysIndicator" data-tone="idle" role="status">
+      <span class="dot"></span><span id="sysText">Standby</span>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- 3.b HERO SECTION -->
+<section id="hero" class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <h1>Pintu terbuka hanya untuk sidik jari yang terdaftar</h1>
+      <p>Simulasi sistem pintu otomatis berbasis sensor sidik jari dan Arduino. Pilih sidik jari, jalankan pemindaian, lalu lihat verifikasi, solenoid, pintu, dan log aktivitas berubah secara berurutan.</p>
+      <button class="btn primary" id="btnStart" type="button">Mulai Simulasi</button>
+    </div>
+    <svg class="hero-art" viewBox="0 0 420 220" role="img" aria-label="Ilustrasi sensor fingerprint, mikrokontroler Arduino, dan pintu otomatis">
+      <rect x="10" y="60" width="90" height="100" rx="12" class="art-box"/>
+      <circle cx="55" cy="105" r="26" class="art-ring"/><circle cx="55" cy="105" r="16" class="art-ring"/><circle cx="55" cy="105" r="6" class="art-ring"/>
+      <text x="55" y="185" text-anchor="middle">Sensor</text>
+      <rect x="165" y="70" width="90" height="80" rx="8" class="art-box fill"/>
+      <rect x="180" y="86" width="26" height="26" rx="3" class="art-chip"/>
+      <circle cx="232" cy="99" r="5" class="art-ok"/><circle cx="232" cy="120" r="5" class="art-bad"/>
+      <text x="210" y="185" text-anchor="middle">Arduino</text>
+      <rect x="330" y="30" width="76" height="140" rx="4" class="art-box"/>
+      <path d="M338 38h60v124h-60z" class="art-door"/><circle cx="388" cy="102" r="4" class="art-chip"/>
+      <rect x="318" y="94" width="14" height="16" rx="2" class="art-chip"/>
+      <text x="368" y="190" text-anchor="middle">Pintu &amp; solenoid</text>
+      <path d="M100 110h65M255 110h63" class="art-line"/>
+    </svg>
+  </div>
+</section>
+
+<!-- 3.c DASHBOARD MONITORING -->
+<section id="dashboard" class="sec">
+  <div class="wrap">
+    <h2>Dashboard Monitoring</h2>
+    <div class="cards">
+      <article class="card"><h3>Status Arduino</h3><p class="val" id="cArduino" data-tone="warn">Simulated</p><p class="hint">Online, Offline, atau Simulated</p></article>
+      <article class="card"><h3>Status Sensor</h3><p class="val" id="cSensor" data-tone="ok">Ready</p><p class="hint">Ready, Scanning, Success, atau Failed</p></article>
+      <article class="card"><h3>Status Autentikasi</h3><p class="val" id="cAuth" data-tone="idle">Belum ada</p><p class="hint">Granted atau Denied</p></article>
+      <article class="card"><h3>Status Pintu</h3><p class="val" id="cDoor" data-tone="idle">Locked</p><p class="hint">Locked, Unlocking, Open, atau Locking</p></article>
+      <article class="card"><h3>Status Pengunci</h3><p class="val" id="cLock" data-tone="idle">Locked</p><p class="hint">Locked atau Unlocked</p></article>
+      <article class="card stats"><h3>Statistik Akses</h3>
+        <div class="two"><div><p class="val" id="cOk" data-tone="ok">0</p><p class="hint">Berhasil</p></div><div><p class="val" id="cFail" data-tone="bad">0</p><p class="hint">Gagal</p></div></div>
+        <p class="hint">Akses terakhir: <span id="cLast">-</span></p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- 3.d PANEL SIMULASI + 3.e VISUALISASI PINTU -->
+<section id="simulasi" class="sec alt">
+  <div class="wrap">
+    <h2>Simulasi</h2>
+    <div class="alert" id="errBanner" role="alert" hidden>Sensor fingerprint tidak terdeteksi. Periksa kabel sensor. Sistem tidak akan memberikan akses baru sampai error dipulihkan.</div>
+    <div class="sim-grid">
+
+      <div class="panel" aria-labelledby="hSim">
+        <h3 id="hSim">Panel Simulasi Fingerprint</h3>
+        <div class="sensor" id="sensorBox" data-state="Ready">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <g class="fp"><circle cx="60" cy="60" r="44"/><circle cx="60" cy="60" r="34"/><circle cx="60" cy="60" r="24"/><circle cx="60" cy="60" r="14"/><circle cx="60" cy="60" r="5"/></g>
+          </svg>
+          <div class="beam"></div>
+        </div>
+        <div class="progress" aria-hidden="true"><span id="bar"></span></div>
+        <p class="phase" id="phase">Sensor siap. Pilih sidik jari lalu tekan Scan Fingerprint.</p>
+
+        <fieldset>
+          <legend>Pilih sidik jari uji</legend>
+          <label class="opt"><input type="radio" name="scn" value="valid" checked> Sidik jari terdaftar</label>
+          <label class="sub">ID simulasi
+            <select id="selUser"></select>
+          </label>
+          <label class="opt"><input type="radio" name="scn" value="invalid"> Sidik jari tidak terdaftar</label>
+        </fieldset>
+        <label class="opt"><input type="checkbox" id="chkAuto" checked> Penguncian otomatis (Auto Lock)</label>
+        <label class="opt"><input type="checkbox" id="chkErr"> Simulasikan error sensor</label>
+
+        <div class="actions">
+          <button class="btn primary" id="btnScan" type="button">Scan Fingerprint</button>
+          <button class="btn" id="btnEnroll" type="button">Daftarkan Jari Baru</button>
+          <button class="btn" id="btnReset" type="button">Reset Sistem</button>
+        </div>
+
+        <div class="result" id="result" data-tone="idle">
+          <p class="rtitle" id="rTitle">Belum ada pemindaian</p>
+          <dl>
+            <dt>ID pengguna</dt><dd id="rId">-</dd>
+            <dt>Nama pengguna simulasi</dt><dd id="rName">-</dd>
+            <dt>Durasi pemindaian</dt><dd id="rDur">-</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="panel" aria-labelledby="hDoor">
+        <h3 id="hDoor">Visualisasi Pintu Otomatis</h3>
+        <div class="scene" id="scene" data-door="Locked">
+          <div class="frame">
+            <div class="door"><span class="knob"></span></div>
+            <div class="bolt" title="Solenoid door lock"></div>
+          </div>
+        </div>
+        <ul class="door-info">
+          <li>Kondisi pintu <strong id="dDoor">Locked</strong></li>
+          <li>Solenoid door lock <strong id="dSol" class="chip" data-tone="idle">Nonaktif</strong></li>
+          <li>Pengunci <strong id="dLock">Locked</strong></li>
+          <li>Durasi pintu terbuka <strong id="dOpen">-</strong></li>
+        </ul>
+        <button class="btn" id="btnManual" type="button" disabled>Kunci Pintu (tombol kunci)</button>
+        <p class="hint">Pintu hanya terbuka setelah autentikasi berhasil. Pengunci baru aktif setelah pintu tertutup sepenuhnya.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3.f PANEL INFORMASI PERANGKAT -->
+<section id="perangkat" class="sec">
+  <div class="wrap">
+    <h2>Informasi Perangkat</h2>
+    <div class="dev-grid">
+      <div class="panel">
+        <h3>Hubungan sensor, mikrokontroler, dan pengunci</h3>
+        <div class="chain">
+          <div class="node">Sensor fingerprint<small>RX pin 2, TX pin 3</small></div>
+          <span class="arrow">&rarr;</span>
+          <div class="node core">Arduino<small>Verifikasi &amp; logika</small></div>
+          <span class="arrow">&rarr;</span>
+          <div class="node">Pengunci elektronik<small>Pin 6 (aktuator kunci)</small></div>
+        </div>
+        <div class="leds">
+          <div><span class="led green" id="ledG"></span> LED hijau (pin 8) akses diterima</div>
+          <div><span class="led red" id="ledR"></span> LED merah (pin 9) akses ditolak</div>
+          <div><span class="led buz" id="ledB"></span> Buzzer (pin 10)</div>
+        </div>
+        <p class="hint">Tombol kunci pada pin 7. Aktuator pada kode Arduino adalah servo (90&deg; terkunci, 0&deg; terbuka) dan dalam simulasi ini direpresentasikan sebagai solenoid door lock.</p>
+        <p class="note" id="hwNote">Mode simulasi: perangkat keras belum terhubung secara langsung. Seluruh komponen di halaman ini hanya simulasi di browser.</p>
+        <div class="actions"><button class="btn primary" id="btnConnect" type="button">Hubungkan Arduino</button></div>
+        <p class="hint">Mode Live opsional: hubungkan Arduino lewat kabel USB (Chrome/Edge di komputer, tutup Serial Monitor Arduino IDE).</p>
+        <pre class="serial" id="serialLog" aria-label="Data serial dari Arduino" hidden></pre>
+      </div>
+      <div class="panel">
+        <h3>Layar LCD I2C 16x2 (simulasi)</h3>
+        <div class="lcd" aria-live="polite"><div id="lcd1">SMART LOCKER</div><div id="lcd2">Tempelkan Jari</div></div>
+        <p class="hint">Teks LCD mengikuti pesan pada kode Arduino.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3.g LOG AKTIVITAS -->
+<section id="log" class="sec alt">
+  <div class="wrap">
+    <h2>Log Aktivitas</h2>
+    <div class="actions">
+      <button class="btn" id="btnClear" type="button">Bersihkan Riwayat</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nomor</th><th>Waktu pemindaian</th><th>ID pengguna</th><th>Nama pengguna simulasi</th><th>Hasil autentikasi</th><th>Status pintu dan pengunci</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="tentang" class="sec">
+  <div class="wrap about">
+    <h2>Tentang Sistem</h2>
+    <p>Sistem ini mendemonstrasikan keamanan pintu otomatis berbasis autentikasi sidik jari dengan mikrokontroler Arduino: pemindaian, verifikasi pengguna, pengendalian pengunci elektronik, dan monitoring status pintu.</p>
+    <ol>
+      <li>Sistem standby dengan pintu terkunci.</li>
+      <li>Pilih sidik jari terdaftar atau tidak terdaftar, lalu tekan Scan Fingerprint.</li>
+      <li>Sensor memindai, lalu sistem memverifikasi.</li>
+      <li>Jika valid: Access Granted, pengunci dilepas, pintu Unlocking lalu Open.</li>
+      <li>Setelah durasi terbuka berakhir, pintu Locking lalu Locked kembali (jika Auto Lock aktif).</li>
+      <li>Jika tidak valid: Access Denied dan pintu tetap terkunci.</li>
+    </ol>
+  </div>
+</section>
+</main>
+
+<!-- 3.h FOOTER -->
+<footer class="footer">
+  <div class="wrap">
+    <p><strong>Simulasi Sistem Pintu Otomatis Berbasis Sensor Sidik Jari dan Arduino.</strong> Tujuan: mendemonstrasikan proses pemindaian, autentikasi, kendali pengunci, dan pencatatan aktivitas.</p>
+    <p>Teknologi: HTML, CSS, JavaScript, Arduino (disimulasikan), sensor fingerprint (disimulasikan), solenoid door lock (disimulasikan).</p>
+    <p>Secara bawaan sistem yang ditampilkan adalah simulasi berbasis browser: tidak membaca sidik jari asli dan tidak mengontrol pintu fisik. Mode Live bersifat opsional dan hanya memantau data serial dari Arduino.</p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
